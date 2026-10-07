@@ -66,7 +66,6 @@
   </form>
 
   <div class="row" id="boundActions" hidden>
-    <button type="button" id="test">只測試目前帳號</button>
     <button type="button" id="unbind" class="danger">解除綁定</button>
   </div>
 
@@ -98,7 +97,6 @@
     if (!pw && user !== bound) return $("err").textContent = "請輸入密碼。";
     send({ action: "bind", display_name: name, username: user, password: pw });
   });
-  $("test").addEventListener("click", () => send({ action: "test" }));
   $("unbind").addEventListener("click", () => {
     const go = () => send({ action: "unbind" });
     if (tg && tg.showConfirm) tg.showConfirm("確定要解除綁定、刪除儲存的帳密嗎？", ok => ok && go());
