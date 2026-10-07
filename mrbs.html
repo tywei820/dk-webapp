@@ -1,0 +1,109 @@
+<!doctype html>
+<!--
+  DK 助手：會議室（MRBS）帳號設定表單，Telegram Mini App。
+  放在公開的 HTTPS 網址（GitHub Pages），網址填進 config/config.toml 的 [mrbs] webapp_url。
+  這頁只是表單、沒有任何密鑰：送出時用 Telegram.WebApp.sendData() 經 Telegram 交給 bot，
+  bot 測試登入成功才加密儲存（見 dkbot/bot.py on_web_app_data）。不會連到任何其他伺服器。
+  網址參數（bot 帶入，只有預填用途）：name＝預約人名稱、user＝目前綁定的帳號。
+-->
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>會議室帳號</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: var(--tg-theme-bg-color, #ffffff);
+    --text: var(--tg-theme-text-color, #1a1a1a);
+    --hint: var(--tg-theme-hint-color, #8a8a8e);
+    --field: var(--tg-theme-secondary-bg-color, #f2f2f7);
+    --accent: var(--tg-theme-button-color, #2481cc);
+    --accent-text: var(--tg-theme-button-text-color, #ffffff);
+    --danger: var(--tg-theme-destructive-text-color, #e53935);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--text);
+         font: 16px/1.5 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif; }
+  h1 { font-size: 20px; margin: 4px 0 4px; }
+  .sub { color: var(--hint); font-size: 14px; margin: 0 0 20px; }
+  label { display: block; font-size: 14px; color: var(--hint); margin: 16px 0 6px; }
+  input { width: 100%; padding: 12px; font-size: 16px; border: 0; border-radius: 10px;
+          background: var(--field); color: var(--text); outline: none; }
+  input:focus { box-shadow: 0 0 0 2px var(--accent); }
+  .help { font-size: 13px; color: var(--hint); margin-top: 6px; }
+  .err { font-size: 13px; color: var(--danger); margin-top: 6px; min-height: 1em; }
+  .row { display: flex; gap: 10px; margin-top: 28px; }
+  button { flex: 1; padding: 12px; font-size: 15px; border-radius: 10px; border: 0; cursor: pointer;
+           background: var(--field); color: var(--text); }
+  button.primary { background: var(--accent); color: var(--accent-text); }
+  button.danger { color: var(--danger); }
+  .bound { padding: 10px 12px; border-radius: 10px; background: var(--field); font-size: 14px; }
+</style>
+</head>
+<body>
+  <h1>🔑 會議室帳號</h1>
+  <p class="sub">設定預約會議室用的 MRBS 帳號。送出後會立刻測試登入，成功才會加密儲存，結果會回覆在聊天室。</p>
+
+  <div id="bound" class="bound" hidden></div>
+
+  <form id="f" autocomplete="off">
+    <label for="name">預約人名稱</label>
+    <input id="name" maxlength="50" placeholder="例如 王小明" required>
+    <div class="help">預約會議室時會填在「簡短說明」。</div>
+
+    <label for="user">MRBS 帳號</label>
+    <input id="user" maxlength="64" placeholder="例如 SF530" autocapitalize="off" autocorrect="off" spellcheck="false" required>
+
+    <label for="pw">MRBS 密碼</label>
+    <input id="pw" type="password" maxlength="128" autocomplete="new-password">
+    <div class="help" id="pwhelp">密碼不會出現在聊天紀錄。</div>
+    <div class="err" id="err"></div>
+
+    <div class="row">
+      <button type="submit" class="primary">儲存並測試登入</button>
+    </div>
+  </form>
+
+  <div class="row" id="boundActions" hidden>
+    <button type="button" id="test">只測試目前帳號</button>
+    <button type="button" id="unbind" class="danger">解除綁定</button>
+  </div>
+
+<script>
+  const tg = window.Telegram && Telegram.WebApp;
+  if (tg) { tg.ready(); tg.expand(); }
+  const q = new URLSearchParams(location.search);
+  const bound = q.get("user") || "";
+  const $ = id => document.getElementById(id);
+  $("name").value = q.get("name") || "";
+  $("user").value = bound;
+  if (bound) {
+    $("bound").hidden = false;
+    $("bound").textContent = "目前綁定：" + bound;
+    $("boundActions").hidden = false;
+    $("pwhelp").textContent = "帳號不變、只改預約人名稱時，密碼可以留空。密碼不會出現在聊天紀錄。";
+  }
+
+  function send(obj) {
+    if (!tg || !tg.sendData) { $("err").textContent = "請從 Telegram 的「🔑 會議室帳號」按鈕開啟這個頁面。"; return; }
+    tg.sendData(JSON.stringify(obj));   // 送出後 Telegram 會自動關閉視窗
+  }
+
+  $("f").addEventListener("submit", e => {
+    e.preventDefault();
+    const name = $("name").value.trim(), user = $("user").value.trim(), pw = $("pw").value;
+    if (!name) return $("err").textContent = "請輸入預約人名稱。";
+    if (!user || /\s/.test(user)) return $("err").textContent = "帳號不能空白或包含空格。";
+    if (!pw && user !== bound) return $("err").textContent = "請輸入密碼。";
+    send({ action: "bind", display_name: name, username: user, password: pw });
+  });
+  $("test").addEventListener("click", () => send({ action: "test" }));
+  $("unbind").addEventListener("click", () => {
+    const go = () => send({ action: "unbind" });
+    if (tg && tg.showConfirm) tg.showConfirm("確定要解除綁定、刪除儲存的帳密嗎？", ok => ok && go());
+    else if (confirm("確定要解除綁定嗎？")) go();
+  });
+</script>
+</body>
+</html>
